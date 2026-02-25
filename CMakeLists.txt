@@ -4,6 +4,10 @@ project(orbslam3_ros2_vendor LANGUAGES C CXX)
 find_package(ament_cmake REQUIRED)
 include(ExternalProject)
 
+option(ORBROS_VENDOR_SKIP_ORB_SLAM3_PATCH_STEP
+    "Skip ORB_SLAM3 third_party patch/clean step (useful when local ORB_SLAM3 source is intentionally dirty)"
+    OFF)
+
 set(PANGOLIN_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/Pangolin")
 set(ORB_SLAM3_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ORB_SLAM3")
 set(PATCH_HELPER "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_git_patch_idempotent.cmake")
@@ -17,85 +21,88 @@ foreach(_required_file IN ITEMS
     "${PANGOLIN_PATCH}"
     "${PANGOLIN_EXPORT_TARGET_PATCH}"
     "${ORB_SLAM3_PATCH}")
-  if(NOT EXISTS "${_required_file}")
-    message(FATAL_ERROR "Missing required file: ${_required_file}")
-  endif()
+    if(NOT EXISTS "${_required_file}")
+        message(FATAL_ERROR "Missing required file: ${_required_file}")
+    endif()
 endforeach()
 
 if(NOT EXISTS "${PANGOLIN_SRC_DIR}/CMakeLists.txt")
-  message(FATAL_ERROR
-    "Missing Pangolin source at ${PANGOLIN_SRC_DIR}. "
-    "Initialize this repo submodules or vendor the source into third_party/.")
+    message(FATAL_ERROR
+        "Missing Pangolin source at ${PANGOLIN_SRC_DIR}. Initialize this repo submodules or vendor the source into third_party/.")
 endif()
+
 if(NOT EXISTS "${ORB_SLAM3_SRC_DIR}/CMakeLists.txt")
-  message(FATAL_ERROR
-    "Missing ORB_SLAM3 source at ${ORB_SLAM3_SRC_DIR}. "
-    "Initialize this repo submodules or vendor the source into third_party/.")
+    message(FATAL_ERROR
+        "Missing ORB_SLAM3 source at ${ORB_SLAM3_SRC_DIR}. Initialize this repo submodules or vendor the source into third_party/.")
 endif()
 
 set(_vendor_common_cmake_args
-  -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-  -DCMAKE_BUILD_TYPE=Release
-  -DCMAKE_C_FLAGS=
-  -DCMAKE_CXX_FLAGS=
-  -DCMAKE_SHARED_LINKER_FLAGS=
-  -DCMAKE_EXE_LINKER_FLAGS=
-  -DBUILD_SHARED_LIBS=ON
-)
+    "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
+    "-DCMAKE_BUILD_TYPE=Release"
+    "-DCMAKE_C_FLAGS="
+    "-DCMAKE_CXX_FLAGS="
+    "-DCMAKE_SHARED_LINKER_FLAGS="
+    "-DCMAKE_EXE_LINKER_FLAGS="
+    "-DBUILD_SHARED_LIBS=ON")
+
+if(ORBROS_VENDOR_SKIP_ORB_SLAM3_PATCH_STEP)
+    set(_orbslam3_patch_command
+        ${CMAKE_COMMAND} -E echo
+        "Skipping ORB_SLAM3 patch step (ORBROS_VENDOR_SKIP_ORB_SLAM3_PATCH_STEP=ON)"
+        COMMAND ${CMAKE_COMMAND} -E true)
+else()
+    set(_orbslam3_patch_command
+        git -C ${ORB_SLAM3_SRC_DIR} clean -fd
+        COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${ORB_SLAM3_SRC_DIR}
+        -DPATCH_FILE=${ORB_SLAM3_PATCH}
+        -DPATCH_LABEL=ORB_SLAM3-install-rules
+        -P ${PATCH_HELPER})
+endif()
 
 ExternalProject_Add(pangolin_ep
-  PREFIX "${CMAKE_CURRENT_BINARY_DIR}/pangolin_ep"
-  SOURCE_DIR "${PANGOLIN_SRC_DIR}"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/pangolin-build"
-  INSTALL_DIR "${VENDOR_INSTALL_PREFIX}"
-  UPDATE_COMMAND ""
-  PATCH_COMMAND
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/pangolin_ep"
+    SOURCE_DIR "${PANGOLIN_SRC_DIR}"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/pangolin-build"
+    INSTALL_DIR "${VENDOR_INSTALL_PREFIX}"
+    UPDATE_COMMAND ""
+    PATCH_COMMAND
     ${CMAKE_COMMAND}
-      -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
-      -DPATCH_FILE=${PANGOLIN_PATCH}
-      -DPATCH_LABEL=Pangolin-dedup-fonts
-      -P ${PATCH_HELPER}
+    -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
+    -DPATCH_FILE=${PANGOLIN_PATCH}
+    -DPATCH_LABEL=Pangolin-dedup-fonts
+    -P ${PATCH_HELPER}
     COMMAND
     ${CMAKE_COMMAND}
-      -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
-      -DPATCH_FILE=${PANGOLIN_EXPORT_TARGET_PATCH}
-      -DPATCH_LABEL=Pangolin-export-Pangolin::pangolin
-      -P ${PATCH_HELPER}
-  CMAKE_ARGS
+    -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
+    -DPATCH_FILE=${PANGOLIN_EXPORT_TARGET_PATCH}
+    -DPATCH_LABEL=Pangolin-export-Pangolin::pangolin
+    -P ${PATCH_HELPER}
+    CMAKE_ARGS
     ${_vendor_common_cmake_args}
-    -DBUILD_PANGOLIN_PYTHON=OFF
-    -DBUILD_EXAMPLES=OFF
-    -DBUILD_TOOLS=OFF
-    -DBUILD_TESTS=OFF
-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel
-)
+    "-DBUILD_PANGOLIN_PYTHON=OFF"
+    "-DBUILD_EXAMPLES=OFF"
+    "-DBUILD_TOOLS=OFF"
+    "-DBUILD_TESTS=OFF"
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
+    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel)
 
 ExternalProject_Add(orbslam3_ep
-  PREFIX "${CMAKE_CURRENT_BINARY_DIR}/orbslam3_ep"
-  SOURCE_DIR "${ORB_SLAM3_SRC_DIR}"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/orbslam3-build"
-  INSTALL_DIR "${VENDOR_INSTALL_PREFIX}"
-  UPDATE_COMMAND ""
-  PATCH_COMMAND
-    git -C ${ORB_SLAM3_SRC_DIR} clean -fd
-    COMMAND
-    ${CMAKE_COMMAND}
-      -DSOURCE_DIR=${ORB_SLAM3_SRC_DIR}
-      -DPATCH_FILE=${ORB_SLAM3_PATCH}
-      -DPATCH_LABEL=ORB_SLAM3-install-rules
-      -P ${PATCH_HELPER}
-  CMAKE_ARGS
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/orbslam3_ep"
+    SOURCE_DIR "${ORB_SLAM3_SRC_DIR}"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/orbslam3-build"
+    INSTALL_DIR "${VENDOR_INSTALL_PREFIX}"
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ${_orbslam3_patch_command}
+    CMAKE_ARGS
     ${_vendor_common_cmake_args}
-    -DCMAKE_PREFIX_PATH=<INSTALL_DIR>
-    -DORBROS_BUILD_ORB_SLAM3_EXAMPLES=OFF
-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel
-  DEPENDS pangolin_ep
-)
+    "-DCMAKE_PREFIX_PATH=<INSTALL_DIR>"
+    "-DORBROS_BUILD_ORB_SLAM3_EXAMPLES=OFF"
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
+    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel
+    DEPENDS pangolin_ep)
 
 add_custom_target(${PROJECT_NAME}_vendor ALL
-  DEPENDS pangolin_ep orbslam3_ep
-)
+    DEPENDS pangolin_ep orbslam3_ep)
 
 ament_package()
