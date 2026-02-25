@@ -1,20 +1,28 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 344e34d..ff493b2 100644
+index 344e34d..6e2bf76 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -1,6 +1,8 @@
+@@ -1,6 +1,9 @@
  cmake_minimum_required(VERSION 3.8)
  project(ORB_SLAM3 LANGUAGES C CXX)
  
 +include(GNUInstallDirs)
++include(CMakePackageConfigHelpers)
 +
  set(CMAKE_CXX_STANDARD 17)
  set(CMAKE_CXX_STANDARD_REQUIRED ON)
  set(CMAKE_CXX_EXTENSIONS OFF)
-@@ -121,14 +123,15 @@ include/Settings.h)
+@@ -121,14 +124,22 @@ include/Settings.h)
  
  target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
  
++target_include_directories(${PROJECT_NAME} PUBLIC
++  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
++  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
++  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/Thirdparty/Sophus>
++  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
++)
++
 +add_subdirectory(Thirdparty/DBoW2)
  add_subdirectory(Thirdparty/g2o)
  
@@ -29,16 +37,15 @@ index 344e34d..ff493b2 100644
  -lboost_serialization
  -lcrypto
  )
-@@ -143,6 +146,42 @@ if(realsense2_FOUND)
+@@ -143,6 +154,68 @@ if(realsense2_FOUND)
      )
  endif()
  
-+install(TARGETS ${PROJECT_NAME}
++install(TARGETS ${PROJECT_NAME} DBoW2 g2o
++  EXPORT ORB_SLAM3Targets
 +  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-+)
-+
-+install(TARGETS DBoW2 g2o
-+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 +)
 +
 +install(DIRECTORY include/
@@ -52,6 +59,10 @@ index 344e34d..ff493b2 100644
 +  Thirdparty/DBoW2/DBoW2
 +  Thirdparty/DBoW2/DUtils
 +  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/DBoW2
++)
++
++install(DIRECTORY Thirdparty/Sophus/sophus
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 +)
 +
 +install(DIRECTORY Thirdparty/Sophus/sophus
@@ -69,6 +80,37 @@ index 344e34d..ff493b2 100644
 +  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/g2o
 +)
 +
++configure_package_config_file(
++  ${PROJECT_SOURCE_DIR}/cmake/ORB_SLAM3Config.cmake.in
++  ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM3Config.cmake
++  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ORB_SLAM3
++)
++
++write_basic_package_version_file(
++  ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM3ConfigVersion.cmake
++  VERSION 0.0.0
++  COMPATIBILITY AnyNewerVersion
++)
++
++install(EXPORT ORB_SLAM3Targets
++  NAMESPACE ORB_SLAM3::
++  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ORB_SLAM3
++)
++
++install(FILES
++  ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM3Config.cmake
++  ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM3ConfigVersion.cmake
++  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ORB_SLAM3
++)
++
  
  # Build examples
  
+diff --git a/cmake/ORB_SLAM3Config.cmake.in b/cmake/ORB_SLAM3Config.cmake.in
+new file mode 100644
+index 0000000..d8e8a20
+--- /dev/null
++++ b/cmake/ORB_SLAM3Config.cmake.in
+@@ -0,0 +1,2 @@
++@PACKAGE_INIT@
++include("${CMAKE_CURRENT_LIST_DIR}/ORB_SLAM3Targets.cmake")
