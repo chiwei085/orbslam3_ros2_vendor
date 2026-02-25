@@ -1,0 +1,30 @@
+diff --git a/cmake/PangolinConfig.cmake.in b/cmake/PangolinConfig.cmake.in
+index 3ceea9d..10817d4 100644
+--- a/cmake/PangolinConfig.cmake.in
++++ b/cmake/PangolinConfig.cmake.in
+@@ -10,6 +10,25 @@ SET( Pangolin_CMAKEMODULES @CMAKE_CURRENT_SOURCE_DIR@/cmake )
+ SET( Pangolin_LIBRARIES    @component_list@ )
+ SET( Pangolin_LIBRARY      "${Pangolin_LIBRARIES}" )
+ 
++# ---- ORBROS compat: guarantee Pangolin::pangolin exists for downstreams ----
++if(NOT TARGET Pangolin::pangolin)
++  # Newer / component-export style: pango_display exists (and links the needed pieces)
++  if(TARGET pango_display)
++    add_library(Pangolin::pangolin INTERFACE IMPORTED)
++    target_link_libraries(Pangolin::pangolin INTERFACE pango_display)
++
++  # Older style: Pangolin_LIBRARIES variable exists
++  elseif(DEFINED Pangolin_LIBRARIES)
++    add_library(Pangolin::pangolin INTERFACE IMPORTED)
++    target_link_libraries(Pangolin::pangolin INTERFACE ${Pangolin_LIBRARIES})
++
++  else()
++    message(FATAL_ERROR
++      "PangolinConfig loaded but neither Pangolin::pangolin nor pango_display nor Pangolin_LIBRARIES are available. "
++      "Cannot provide Pangolin::pangolin compatibility target.")
++  endif()
++endif()
++
+ include(CMakeFindDependencyMacro)
+ find_dependency(Eigen3)
+ 

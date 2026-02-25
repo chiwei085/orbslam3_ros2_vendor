@@ -8,12 +8,14 @@ set(PANGOLIN_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/Pangolin")
 set(ORB_SLAM3_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ORB_SLAM3")
 set(PATCH_HELPER "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_git_patch_idempotent.cmake")
 set(PANGOLIN_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/pangolin/0001-dedup-fonts.patch")
+set(PANGOLIN_EXPORT_TARGET_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/pangolin/0002-export-pangolin-target.patch")
 set(ORB_SLAM3_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/orbslam3/0001-add-install-rules-and-link-targets.patch")
 set(VENDOR_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
 foreach(_required_file IN ITEMS
     "${PATCH_HELPER}"
     "${PANGOLIN_PATCH}"
+    "${PANGOLIN_EXPORT_TARGET_PATCH}"
     "${ORB_SLAM3_PATCH}")
   if(NOT EXISTS "${_required_file}")
     message(FATAL_ERROR "Missing required file: ${_required_file}")
@@ -52,6 +54,12 @@ ExternalProject_Add(pangolin_ep
       -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
       -DPATCH_FILE=${PANGOLIN_PATCH}
       -DPATCH_LABEL=Pangolin-dedup-fonts
+      -P ${PATCH_HELPER}
+    COMMAND
+    ${CMAKE_COMMAND}
+      -DSOURCE_DIR=${PANGOLIN_SRC_DIR}
+      -DPATCH_FILE=${PANGOLIN_EXPORT_TARGET_PATCH}
+      -DPATCH_LABEL=Pangolin-export-Pangolin::pangolin
       -P ${PATCH_HELPER}
   CMAKE_ARGS
     ${_vendor_common_cmake_args}
