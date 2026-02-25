@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 344e34d..e7bceef 100644
+index 344e34d..ff493b2 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -1,6 +1,8 @@
@@ -29,9 +29,9 @@ index 344e34d..e7bceef 100644
  -lboost_serialization
  -lcrypto
  )
-@@ -144,6 +147,29 @@ if(realsense2_FOUND)
+@@ -143,6 +146,42 @@ if(realsense2_FOUND)
+     )
  endif()
- 
  
 +install(TARGETS ${PROJECT_NAME}
 +  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -48,14 +48,27 @@ index 344e34d..e7bceef 100644
 +    PATTERN "*.hpp"
 +)
 +
++install(DIRECTORY
++  Thirdparty/DBoW2/DBoW2
++  Thirdparty/DBoW2/DUtils
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/DBoW2
++)
++
 +install(DIRECTORY Thirdparty/Sophus/sophus
-+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/Sophus
++)
++
++install(DIRECTORY Thirdparty/g2o/g2o
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/g2o
++  FILES_MATCHING
++    PATTERN "*.h"
++    PATTERN "*.hpp"
 +)
 +
 +install(FILES Thirdparty/g2o/config.h
-+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/g2o
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Thirdparty/g2o
 +)
 +
+ 
  # Build examples
  
- # RGB-D examples
