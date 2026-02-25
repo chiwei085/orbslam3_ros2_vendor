@@ -55,6 +55,10 @@ ExternalProject_Add(pangolin_ep
       -P ${PATCH_HELPER}
   CMAKE_ARGS
     ${_vendor_common_cmake_args}
+    -DBUILD_PANGOLIN_PYTHON=OFF
+    -DBUILD_EXAMPLES=OFF
+    -DBUILD_TOOLS=OFF
+    -DBUILD_TESTS=OFF
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
   INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel
 )
