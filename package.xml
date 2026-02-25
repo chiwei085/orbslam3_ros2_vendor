@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>orbslam3_ros2_vendor</name>
+  <version>0.0.0</version>
+  <description>Vendor package that builds and installs Pangolin + ORB_SLAM3 into a ROS 2 prefix.</description>
+
+  <maintainer email="yehchiwei.work@gmail.com">chiwei085</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>cmake</build_depend>
+  <build_depend>git</build_depend>
+  <build_depend>pkg-config</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

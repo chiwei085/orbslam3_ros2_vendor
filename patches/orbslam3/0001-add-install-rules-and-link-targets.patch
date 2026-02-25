@@ -1,0 +1,61 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 344e34d..e7bceef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,6 +1,8 @@
+ cmake_minimum_required(VERSION 3.8)
+ project(ORB_SLAM3 LANGUAGES C CXX)
+ 
++include(GNUInstallDirs)
++
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ set(CMAKE_CXX_EXTENSIONS OFF)
+@@ -121,14 +123,15 @@ include/Settings.h)
+ 
+ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+ 
++add_subdirectory(Thirdparty/DBoW2)
+ add_subdirectory(Thirdparty/g2o)
+ 
+ target_link_libraries(${PROJECT_NAME}
+ ${OpenCV_LIBS}
+ ${EIGEN3_LIBS}
+ ${Pangolin_LIBRARIES}
+-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+-${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
++DBoW2
++g2o
+ -lboost_serialization
+ -lcrypto
+ )
+@@ -144,6 +147,29 @@ if(realsense2_FOUND)
+ endif()
+ 
+ 
++install(TARGETS ${PROJECT_NAME}
++  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++)
++
++install(TARGETS DBoW2 g2o
++  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++)
++
++install(DIRECTORY include/
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++  FILES_MATCHING
++    PATTERN "*.h"
++    PATTERN "*.hpp"
++)
++
++install(DIRECTORY Thirdparty/Sophus/sophus
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++)
++
++install(FILES Thirdparty/g2o/config.h
++  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/g2o
++)
++
+ # Build examples
+ 
+ # RGB-D examples
