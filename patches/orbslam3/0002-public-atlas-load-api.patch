@@ -1,0 +1,173 @@
+diff --git a/include/FrameDrawer.h b/include/FrameDrawer.h
+index b499650..471a871 100644
+--- a/include/FrameDrawer.h
++++ b/include/FrameDrawer.h
+@@ -42,6 +42,7 @@ class FrameDrawer
+ public:
+     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+     FrameDrawer(Atlas* pAtlas);
++    void SetAtlas(Atlas* pAtlas) { mpAtlas = pAtlas; }
+ 
+     // Update info from the last processed frame.
+     void Update(Tracking *pTracker);
+diff --git a/include/LocalMapping.h b/include/LocalMapping.h
+index dd04a3d..14f3fb0 100644
+--- a/include/LocalMapping.h
++++ b/include/LocalMapping.h
+@@ -47,6 +47,7 @@ public:
+     void SetLoopCloser(LoopClosing* pLoopCloser);
+ 
+     void SetTracker(Tracking* pTracker);
++    void SetAtlas(Atlas* pAtlas) { mpAtlas = pAtlas; }
+ 
+     // Main function
+     void Run();
+diff --git a/include/LoopClosing.h b/include/LoopClosing.h
+index 7b6bfe0..34c9d1e 100644
+--- a/include/LoopClosing.h
++++ b/include/LoopClosing.h
+@@ -57,6 +57,7 @@ public:
+     void SetTracker(Tracking* pTracker);
+ 
+     void SetLocalMapper(LocalMapping* pLocalMapper);
++    void SetAtlas(Atlas* pAtlas) { mpAtlas = pAtlas; }
+ 
+     // Main function
+     void Run();
+diff --git a/include/MapDrawer.h b/include/MapDrawer.h
+index 635fb21..b2ff472 100644
+--- a/include/MapDrawer.h
++++ b/include/MapDrawer.h
+@@ -40,6 +40,7 @@ public:
+     MapDrawer(Atlas* pAtlas, const string &strSettingPath, Settings* settings);
+ 
+     void newParameterLoader(Settings* settings);
++    void SetAtlas(Atlas* pAtlas) { mpAtlas = pAtlas; }
+ 
+     Atlas* mpAtlas;
+ 
+diff --git a/include/System.h b/include/System.h
+index 20bf4cb..11c7939 100644
+--- a/include/System.h
++++ b/include/System.h
+@@ -189,6 +189,7 @@ public:
+     // Access underlying Atlas (read-only usage expected from wrappers/tools).
+     auto GetAtlas() -> ORB_SLAM3::Atlas*;
+     auto GetAtlas() const -> const ORB_SLAM3::Atlas*;
++    auto LoadAtlasFromFile(const std::string& filename) -> bool;
+ 
+ #ifdef REGISTER_TIMES
+     void InsertRectTime(double& time);
+diff --git a/include/Tracking.h b/include/Tracking.h
+index 863c98e..8846bc2 100644
+--- a/include/Tracking.h
++++ b/include/Tracking.h
+@@ -78,6 +78,7 @@ public:
+     void SetLocalMapper(LocalMapping* pLocalMapper);
+     void SetLoopClosing(LoopClosing* pLoopClosing);
+     void SetViewer(Viewer* pViewer);
++    void SetAtlas(Atlas* pAtlas) { mpAtlas = pAtlas; }
+     void SetStepByStep(bool bSet);
+     bool GetStepByStep();
+ 
+diff --git a/src/System.cc b/src/System.cc
+index cec509f..46b8810 100644
+--- a/src/System.cc
++++ b/src/System.cc
+@@ -33,6 +33,7 @@
+ #include <pangolin/pangolin.h>
+ 
+ #include <iomanip>
++#include <cctype>
+ #include <sstream>
+ #include <thread>
+ 
+@@ -42,6 +43,25 @@
+ namespace ORB_SLAM3
+ {
+ 
++namespace {
++
++bool HasOsaExtension(const std::string& path) {
++    if (path.size() < 4) {
++        return false;
++    }
++    const auto tail = path.substr(path.size() - 4);
++    return std::tolower(static_cast<unsigned char>(tail[0])) == '.' &&
++           std::tolower(static_cast<unsigned char>(tail[1])) == 'o' &&
++           std::tolower(static_cast<unsigned char>(tail[2])) == 's' &&
++           std::tolower(static_cast<unsigned char>(tail[3])) == 'a';
++}
++
++std::string StripOsaExtension(const std::string& path) {
++    return HasOsaExtension(path) ? path.substr(0, path.size() - 4) : path;
++}
++
++}  // namespace
++
+ Verbose::eLevel Verbose::th = Verbose::VERBOSITY_NORMAL;
+ 
+ System::System(const string& strVocFile, const string& strSettingsFile,
+@@ -1432,6 +1452,62 @@ auto System::GetAtlas() const -> const Atlas* {
+     return mpAtlas;
+ }
+ 
++auto System::LoadAtlasFromFile(const std::string& filename) -> bool {
++    if (filename.empty()) {
++        cout << "LoadAtlasFromFile: empty filename" << endl;
++        return false;
++    }
++
++    const string previousLoadPath = mStrLoadAtlasFromFile;
++    Atlas* previousAtlas = mpAtlas;
++
++    mStrLoadAtlasFromFile = StripOsaExtension(filename);
++    mpAtlas = nullptr;
++
++    const bool isRead = LoadAtlas(FileType::BINARY_FILE);
++    if (!isRead) {
++        if (mpAtlas && mpAtlas != previousAtlas) {
++            delete mpAtlas;
++        }
++        mpAtlas = previousAtlas;
++        mStrLoadAtlasFromFile = previousLoadPath;
++        return false;
++    }
++
++    if (!mpAtlas) {
++        cout << "LoadAtlasFromFile: load returned success but atlas is null"
++             << endl;
++        mpAtlas = previousAtlas;
++        mStrLoadAtlasFromFile = previousLoadPath;
++        return false;
++    }
++
++    if (mSensor == IMU_STEREO || mSensor == IMU_MONOCULAR ||
++        mSensor == IMU_RGBD)
++        mpAtlas->SetInertialSensor();
++
++    // Keep constructor-load behavior: preserve loaded maps and create a fresh
++    // active map for future tracking.
++    mpAtlas->CreateNewMap();
++
++    if (mpFrameDrawer)
++        mpFrameDrawer->SetAtlas(mpAtlas);
++    if (mpMapDrawer)
++        mpMapDrawer->SetAtlas(mpAtlas);
++    if (mpTracker)
++        mpTracker->SetAtlas(mpAtlas);
++    if (mpLocalMapper)
++        mpLocalMapper->SetAtlas(mpAtlas);
++    if (mpLoopCloser)
++        mpLoopCloser->SetAtlas(mpAtlas);
++
++    if (previousAtlas && previousAtlas != mpAtlas) {
++        delete previousAtlas;
++    }
++
++    return true;
++}
++
+ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
+     unique_lock<mutex> lock(mMutexState);
+     return mTrackedKeyPointsUn;
